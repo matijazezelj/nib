@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Compose files
+        run: |
+          for file in $(find . -name 'compose*.yaml' -o -name 'docker-compose.yml'); do
+            echo "::group::$file"
+            docker compose -f "$file" config >/dev/null
+            echo "::endgroup::"
+          done
+      - name: Python syntax
+        run: |
+          files=$(git ls-files '*.py')
+          if [ -n "$files" ]; then python -m py_compile $files; fi
+      - name: Shell syntax
+        run: |
+          files=$(git ls-files '*.sh')
+          if [ -n "$files" ]; then
+            for f in $files; do
+              if head -1 "$f" | grep -q 'bash'; then bash -n "$f"; else sh -n "$f"; fi
+            done
+          fi
